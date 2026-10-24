@@ -13,7 +13,7 @@ const build = (data: HealthData) => {
 
 describe('clinician summary', () => {
   it('contains all required sections in order', () => {
-    expect(build(createSyntheticDataset()).sections.map((s) => s.id)).toEqual(['history', 'seizures', 'context', 'patterns', 'connections', 'concerns', 'missing', 'questions', 'tasks']);
+    expect(build(createSyntheticDataset()).sections.map((s) => s.id)).toEqual(['history', 'allergies', 'seizures', 'context', 'review', 'timeline', 'patterns', 'connections', 'concerns', 'missing', 'questions', 'tasks']);
   });
 
   it('reflects actual records and calculations', () => {

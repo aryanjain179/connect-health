@@ -1,7 +1,8 @@
 /** Day-by-day aligned series used by the timeline and charts (pure, descriptive). */
 import type { DateWindow } from '../models/analysis';
-import type { DailyObservation, HealthData, ISODate, MedicationEvent, SeizureEvent } from '../models/types';
+import type { DailyObservation, HealthData, ISODate, MedicationEvent, OutcomeKey, SeizureEvent } from '../models/types';
 import { buildContext } from './context';
+import { MEASURE_BY_ID } from '../conditions/checkin';
 import type { CycleDayInfo } from './cycle';
 import { diffDays } from './dates';
 
@@ -49,11 +50,16 @@ export function symptomsOf(o: DailyObservation | null): string[] {
   if (o.dizziness) s.push('dizziness');
   if (o.illness) s.push('illness');
   if (o.attentionDifficulty) s.push('attention difficulty');
+  for (const [id, v] of Object.entries(o.measures ?? {})) {
+    const def = MEASURE_BY_ID.get(id);
+    if (v === true && def?.noun) s.push(def.noun);
+    else if (typeof v === 'number' && def) s.push(`${def.label.replace(/\s*\(.*\)$/, '').toLowerCase()} ${v}`);
+  }
   return [...s, ...o.otherSymptoms];
 }
 
-export function buildDailySeries(data: HealthData, window: DateWindow): DayPoint[] {
-  const ctx = buildContext(data, window);
+export function buildDailySeries(data: HealthData, window: DateWindow, outcome: OutcomeKey = 'seizures'): DayPoint[] {
+  const ctx = buildContext(data, window, outcome);
   const meds = medicationMarkers(data, window);
   const points: DayPoint[] = ctx.days.map((date) => {
     const o = ctx.obsByDate.get(date) ?? null;

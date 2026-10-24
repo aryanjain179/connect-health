@@ -3,15 +3,18 @@
  * Saving dispatches to the store, which persists and triggers recalculation everywhere.
  */
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import type { CareTask, DailyObservation, HistoryRecord, ISODate, Medication, MedicationEvent, MenstrualRecord, SeizureEvent } from '../../models/types';
+import type { AllergyRecord, CareTask, DailyObservation, HistoryRecord, ISODate, Medication, MedicationEvent, MenstrualRecord, SeizureEvent } from '../../models/types';
 import { useHealthData } from '../../store/HealthDataContext';
 import { newId, type AnyRecord, type CollectionKey } from '../../store/reducer';
 import { dataDates } from '../../analysis/context';
 import { localToday, maxDate } from '../../analysis/dates';
 import { ConfirmDialog, Modal } from '../ui';
-import { HistoryForm, MedicationEventForm, MedicationForm, MenstrualForm, ObservationForm, SeizureForm, TaskForm } from './RecordForms';
+import { AllergyForm, HistoryForm, MedicationEventForm, MedicationForm, MenstrualForm, SeizureForm, TaskForm } from './RecordForms';
+import { CheckinForm, type CheckinBundle } from './CheckinForm';
+import { reconcileBleeding } from '../../conditions/menstrualBleeding';
+import type { Action } from '../../store/reducer';
 
-export type EditorKind = 'seizure' | 'observation' | 'menstrual' | 'medication' | 'medicationEvent' | 'history' | 'task';
+export type EditorKind = 'seizure' | 'observation' | 'menstrual' | 'medication' | 'medicationEvent' | 'history' | 'allergy' | 'task';
 
 interface EditorRequest {
   kind: EditorKind;
@@ -21,6 +24,8 @@ interface EditorRequest {
   defaults?: Record<string, unknown>;
   /** For tasks created from an insight. */
   insightTitle?: string;
+  /** Check-in only: open with a new seizure entry ready (epilepsy profiles). */
+  startWithSeizure?: boolean;
 }
 
 const COLLECTION: Record<EditorKind, CollectionKey> = {
@@ -30,6 +35,7 @@ const COLLECTION: Record<EditorKind, CollectionKey> = {
   medication: 'medications',
   medicationEvent: 'medicationEvents',
   history: 'history',
+  allergy: 'allergies',
   task: 'tasks',
 };
 
@@ -40,6 +46,7 @@ const TITLES: Record<EditorKind, string> = {
   medication: 'medication',
   medicationEvent: 'medication event',
   history: 'symptom / history record',
+  allergy: 'allergy',
   task: 'care task',
 };
 
@@ -64,8 +71,10 @@ export function blankRecord(kind: EditorKind, date: ISODate): AnyRecord {
       return { id: newId('mev'), medicationId: '', date, kind: 'missed-dose', newDose: null, description: '', source: 'patient-reported', isSynthetic: false } satisfies MedicationEvent;
     case 'history':
       return { id: newId('hx'), kind: 'symptom', label: '', status: 'patient-reported', source: 'patient-reported', date, tags: [], notes: '', isSynthetic: false } satisfies HistoryRecord;
+    case 'allergy':
+      return { id: newId('al'), substance: '', category: 'medication', reaction: '', severity: 'unknown', status: 'patient-reported', source: 'patient-reported', notedOn: date, notes: '', isSynthetic: false } satisfies AllergyRecord;
     case 'task':
-      return { id: newId('task'), title: '', reason: '', kind: 'discuss-pattern', insightId: null, dueDate: null, appointmentDate: null, status: 'open', createdOn: date, isSynthetic: false } satisfies CareTask;
+      return { id: newId('task'), title: '', reason: '', kind: 'discuss-pattern', insightId: null, dueDate: null, appointmentDate: null, status: 'open', createdOn: date, contactedWho: '', contactedOn: null, followUpDate: null, notes: '', links: [], isSynthetic: false } satisfies CareTask;
   }
 }
 
@@ -77,13 +86,32 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   // Allow entries up to today, or the latest data date if the device clock is earlier than the synthetic data.
   const maxEntry = maxDate([localToday(), ...dataDates(state.data)]) ?? localToday();
 
-  const openEditor = useCallback((r: EditorRequest) => setReq(r), []);
+  const openEditor = useCallback(
+    (r: EditorRequest) => {
+      // New seizures are logged inside the daily check-in for that date.
+      if (r.kind === 'seizure' && !r.record) {
+        setReq({ kind: 'observation', defaults: r.defaults, startWithSeizure: true });
+        return;
+      }
+      // Opening a check-in for a date that already has one edits that check-in instead of creating a duplicate.
+      if (r.kind === 'observation' && !r.record) {
+        const date = (r.defaults?.date as string | undefined) ?? (localToday() > maxEntry ? maxEntry : localToday());
+        const existing = state.data.observations.find((o) => o.date === date);
+        setReq(existing ? { ...r, record: existing } : { ...r, defaults: { ...r.defaults, date } });
+        return;
+      }
+      setReq(r);
+    },
+    [state.data.observations, maxEntry],
+  );
   const requestDelete = useCallback((kind: EditorKind, id: string, label: string) => setPendingDelete({ kind, id, label }), []);
   const close = () => setReq(null);
 
   const save = (record: AnyRecord) => {
     if (!req) return;
-    dispatch({ type: 'upsert', collection: COLLECTION[req.kind], record });
+    if (req.kind === 'allergy' && state.data.profile.noKnownAllergies) {
+      dispatch({ type: 'batch', actions: [{ type: 'upsert', collection: 'allergies', record }, { type: 'updateProfile', profile: { noKnownAllergies: false } }] });
+    } else dispatch({ type: 'upsert', collection: COLLECTION[req.kind], record });
     close();
   };
 
@@ -99,19 +127,43 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         form = <SeizureForm initial={initial as SeizureEvent} {...common} />;
         break;
       case 'observation':
-        form = <ObservationForm initial={initial as DailyObservation} existing={state.data.observations} {...common} />;
+        form = (
+          <CheckinForm
+            initial={initial as DailyObservation}
+            isNew={!existing}
+            data={state.data}
+            maxDate={maxEntry}
+            startWithSeizure={req.startWithSeizure}
+            newSeizureId={() => newId('sz')}
+            onCancel={close}
+            onDelete={onDelete}
+            onSave={(b: CheckinBundle) => {
+              const actions: Action[] = [];
+              if (b.observation) actions.push({ type: 'upsert', collection: 'observations', record: b.observation });
+              for (const sz of b.seizures) actions.push({ type: 'upsert', collection: 'seizures', record: sz });
+              const date = b.observation?.date ?? b.seizures[0]?.date ?? (initial as DailyObservation).date;
+              // Keep period records in step with the day's bleeding answer.
+              actions.push(...reconcileBleeding(state.data.menstrual, date, b.bleeding, () => newId('cyc')).actions);
+              dispatch({ type: 'batch', actions });
+              close();
+            }}
+          />
+        );
         break;
       case 'menstrual':
         form = <MenstrualForm initial={initial as MenstrualRecord} existing={state.data.menstrual} {...common} />;
         break;
       case 'medication':
-        form = <MedicationForm initial={initial as Medication} {...common} />;
+        form = <MedicationForm initial={initial as Medication} allergies={state.data.allergies} {...common} />;
         break;
       case 'medicationEvent':
         form = <MedicationEventForm initial={initial as MedicationEvent} medications={state.data.medications} {...common} />;
         break;
       case 'history':
         form = <HistoryForm initial={initial as HistoryRecord} {...common} />;
+        break;
+      case 'allergy':
+        form = <AllergyForm initial={initial as AllergyRecord} existing={state.data.allergies} {...common} />;
         break;
       case 'task':
         form = <TaskForm initial={initial as CareTask} insightTitle={req.insightTitle} {...common} />;

@@ -1,22 +1,26 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { menstrualModuleOn, seizureModuleOn } from '../conditions/checkin';
 import { Download, Plus, RotateCcw, Upload } from 'lucide-react';
 import { Badge, Button, Card, CardTitle, ConfirmDialog, EmptyState, PageHeader, cx } from '../components/ui';
 import { useHealthData } from '../store/HealthDataContext';
 import { useEditor, type EditorKind } from '../components/forms/EditorContext';
 import { RowActions } from './TimelinePage';
-import { SEIZURE_TYPE_LABELS } from '../models/types';
+import { ALLERGY_CATEGORY_LABELS, SEIZURE_TYPE_LABELS } from '../models/types';
+import { SEVERITY_LABELS } from '../conditions/allergies';
 import { duration } from '../analysis/format';
 import { exportJson, parseImport } from '../store/storage';
 import { observationCompleteness } from '../analysis/completeness';
+import { describeMeasures } from '../conditions/checkin';
 import { doseOn } from '../analysis/medicationInfo';
 import { historyStatusTone, sourceLabel } from '../components/labels';
 
-type Tab = 'seizures' | 'observations' | 'menstrual' | 'medications' | 'history';
+type Tab = 'seizures' | 'observations' | 'menstrual' | 'medications' | 'allergies' | 'history';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'seizures', label: 'Seizures' },
   { id: 'observations', label: 'Daily check-ins' },
   { id: 'menstrual', label: 'Menstrual cycle' },
   { id: 'medications', label: 'Medications' },
+  { id: 'allergies', label: 'Allergies' },
   { id: 'history', label: 'Symptoms & history' },
 ];
 
@@ -49,7 +53,10 @@ const desc = <T extends Record<K, string>, K extends keyof T>(key: K) => (a: T, 
 export function RecordsPage() {
   const { state, dispatch } = useHealthData();
   const { openEditor, requestDelete } = useEditor();
-  const [tab, setTab] = useState<Tab>('seizures');
+  const seizureTracking = seizureModuleOn(state.data);
+  const cycleTracking = menstrualModuleOn(state.data);
+  const tabs = TABS.filter((t) => (t.id !== 'seizures' || seizureTracking) && (t.id !== 'menstrual' || cycleTracking));
+  const [tab, setTab] = useState<Tab>(seizureTracking ? 'seizures' : 'observations');
   const [confirmReset, setConfirmReset] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -62,7 +69,7 @@ export function RecordsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'healthconnect-export.json';
+    a.download = 'connecthealth-export.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -109,7 +116,7 @@ export function RecordsPage() {
             }}
           />
           <Button variant="ghost" className="text-rose-700 hover:bg-rose-50" onClick={() => setConfirmReset(true)}>
-            <RotateCcw size={16} aria-hidden="true" /> Reset to synthetic dataset
+            <RotateCcw size={16} aria-hidden="true" /> {state.data.profile.isSynthetic ? 'Reset demo to synthetic dataset' : 'Replace with synthetic dataset'}
           </Button>
         </div>
         {message && (
@@ -120,7 +127,7 @@ export function RecordsPage() {
       </Card>
 
       <div role="tablist" aria-label="Record types" className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
@@ -140,7 +147,7 @@ export function RecordsPage() {
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === 'seizures' && (
             <>
-              <CardTitle action={<Button variant="primary" size="sm" onClick={() => add('seizure')}><Plus size={14} aria-hidden="true" /> Add seizure</Button>}>Seizure events ({d.seizures.length})</CardTitle>
+              <CardTitle action={<Button variant="primary" size="sm" onClick={() => add('seizure')}><Plus size={14} aria-hidden="true" /> Log seizure in check-in</Button>}>Seizure events ({d.seizures.length})</CardTitle>
               <Table head={['Date', 'Time', 'Type', 'Duration', 'Severity', 'Recovery', 'Source']} empty={!d.seizures.length}>
                 {[...d.seizures].sort(desc('date')).map((s) => (
                   <tr key={s.id}>
@@ -169,7 +176,7 @@ export function RecordsPage() {
                     <td className="py-2 pr-3">{o.sleepQuality ?? nr}</td>
                     <td className="py-2 pr-3">{o.stressLevel ?? nr}</td>
                     <td className="py-2 pr-3">{o.attentionDifficulty === null ? nr : o.attentionDifficulty ? 'yes' : 'no'}</td>
-                    <td className="py-2 pr-3 text-xs">{[o.headache && 'headache', o.dizziness && 'dizziness', o.illness && 'illness', ...o.otherSymptoms].filter(Boolean).join(', ') || nr}</td>
+                    <td className="py-2 pr-3 text-xs">{[o.headache && 'headache', o.dizziness && 'dizziness', o.illness && 'illness', ...o.otherSymptoms, ...describeMeasures(o)].filter(Boolean).join(', ') || nr}</td>
                     <td className="py-2 pr-3">{Math.round(observationCompleteness(o) * 100)}%</td>
                     <td className="py-2 text-right"><RowActions onEdit={() => openEditor({ kind: 'observation', record: o })} onDelete={() => requestDelete('observation', o.id, 'daily check-in')} /></td>
                   </tr>
@@ -230,6 +237,33 @@ export function RecordsPage() {
                   ))}
                 </Table>
               </div>
+            </>
+          )}
+
+          {tab === 'allergies' && (
+            <>
+              <CardTitle action={<Button variant="primary" size="sm" onClick={() => add('allergy')}><Plus size={14} aria-hidden="true" /> Add allergy</Button>}>Allergies ({d.allergies.length})</CardTitle>
+              {!d.allergies.length && (
+                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <span>{d.profile.noKnownAllergies ? 'Recorded as: no known allergies.' : 'No allergies recorded – this is shown as “not recorded”, not as “no allergies”.'}</span>
+                  <Button size="sm" onClick={() => dispatch({ type: 'updateProfile', profile: { noKnownAllergies: !d.profile.noKnownAllergies } })}>
+                    {d.profile.noKnownAllergies ? 'Undo “no known allergies”' : 'I have no known allergies'}
+                  </Button>
+                </div>
+              )}
+              <Table head={['Allergic to', 'Type', 'Reaction', 'Severity', 'Status', 'Source']} empty={!d.allergies.length}>
+                {[...d.allergies].sort((a, b) => a.substance.localeCompare(b.substance)).map((a) => (
+                  <tr key={a.id}>
+                    <td className="py-2 pr-3 font-medium">{a.substance}</td>
+                    <td className="py-2 pr-3 text-xs">{ALLERGY_CATEGORY_LABELS[a.category]}</td>
+                    <td className="py-2 pr-3">{a.reaction || nr}</td>
+                    <td className="py-2 pr-3"><Badge tone={a.severity === 'severe' ? 'rose' : a.severity === 'moderate' ? 'amber' : 'slate'}>{SEVERITY_LABELS[a.severity]}</Badge></td>
+                    <td className="py-2 pr-3 text-xs">{a.status}</td>
+                    <td className="py-2 pr-3 text-xs">{sourceLabel(a.source)}</td>
+                    <td className="py-2 text-right"><RowActions onEdit={() => openEditor({ kind: 'allergy', record: a })} onDelete={() => requestDelete('allergy', a.id, 'allergy')} /></td>
+                  </tr>
+                ))}
+              </Table>
             </>
           )}
 

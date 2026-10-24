@@ -126,6 +126,11 @@ export function analyzeMedicationChanges(ctx: AnalysisContext, data: HealthData)
         MULTIPLE_COMPARISONS_LIMITATION,
       ],
       details: sideEffects.map((e) => `Side effect reported ${e.date}: ${e.description}`),
+      involvedDates: [cp.date],
+      highlightRanges: [
+        ...(beforeAll.length ? [{ start: beforeAll[0], end: beforeAll[beforeAll.length - 1], label: 'Before change' }] : []),
+        ...(afterAll.length ? [{ start: afterAll[0], end: afterAll[afterAll.length - 1], label: 'After change' }] : []),
+      ],
     });
 
     if (before.length < MIN_MED_OBSERVED_DAYS || after.length < MIN_MED_OBSERVED_DAYS) {

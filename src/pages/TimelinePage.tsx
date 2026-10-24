@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { menstrualModuleOn, seizureModuleOn } from '../conditions/checkin';
 import { CalendarRange, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, CardTitle, PageHeader, cx, inputClass } from '../components/ui';
 import { useAnalysis, useHealthData } from '../store/HealthDataContext';
@@ -12,9 +13,14 @@ import { PHASE_LABELS } from '../analysis/cycle';
 import { BASIS_LABELS } from '../components/charts/phase';
 import { SEIZURE_TYPE_LABELS } from '../models/types';
 import { duration } from '../analysis/format';
+import { describeMeasures } from '../conditions/checkin';
+import { FlagDialog, FlagMarkerList } from '../components/review/FlagDialog';
+import { flagsOnDate, type ReviewFlag } from '../review/flags';
+import { getOutcome } from '../analysis/outcomes';
 
-type Layer = 'seizures' | 'sleep' | 'cycle' | 'meds' | 'symptoms' | 'checkins';
+type Layer = 'flags' | 'seizures' | 'sleep' | 'cycle' | 'meds' | 'symptoms' | 'checkins';
 const LAYERS: Array<{ id: Layer; label: string }> = [
+  { id: 'flags', label: 'Clinician-review markers' },
   { id: 'seizures', label: 'Seizures' },
   { id: 'sleep', label: 'Sleep' },
   { id: 'cycle', label: 'Menstrual cycle' },
@@ -56,21 +62,32 @@ function sleepCls(h: number | null, t: number) {
   return 'bg-teal-200/70';
 }
 
-export function TimelinePage() {
+export function TimelinePage({ initialDate }: { initialDate?: string | null }) {
   const { state } = useHealthData();
-  const { window: analysisWindow } = useAnalysis();
+  const { window: analysisWindow, flags, outcome } = useAnalysis();
+  const [dialog, setDialog] = useState<ReviewFlag | null>(null);
   const { openEditor, requestDelete } = useEditor();
   const data = state.data;
   const all = dataDates(data);
   const minD = minDate(all) ?? analysisWindow.start;
   const maxD = maxDate(all) ?? analysisWindow.end;
 
-  const [range, setRange] = useState({ start: analysisWindow.start, end: analysisWindow.end });
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ seizures: true, sleep: true, cycle: true, meds: true, symptoms: true, checkins: true });
-  const [selected, setSelected] = useState<string | null>(null);
+  const [range, setRange] = useState(() => ({
+    start: initialDate && initialDate < analysisWindow.start ? addDays(initialDate, -14) : analysisWindow.start,
+    end: initialDate && initialDate > analysisWindow.end ? initialDate : analysisWindow.end,
+  }));
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ flags: true, seizures: true, sleep: true, cycle: true, meds: true, symptoms: true, checkins: true });
+  const [selected, setSelected] = useState<string | null>(initialDate && isValidISODate(initialDate) ? initialDate : null);
+  useEffect(() => {
+    if (initialDate && isValidISODate(initialDate)) setSelected(initialDate);
+  }, [initialDate]);
+  const seizureTracking = seizureModuleOn(data);
+  const cycleTracking = menstrualModuleOn(data);
+  const visibleLayers = LAYERS.filter((l) => (l.id !== 'seizures' || seizureTracking) && (l.id !== 'cycle' || cycleTracking));
   const valid = isValidISODate(range.start) && isValidISODate(range.end) && range.start <= range.end;
   const win = valid ? range : analysisWindow;
-  const series = useMemo(() => buildDailySeries(data, win), [data, win]);
+  const series = useMemo(() => buildDailySeries(data, win, outcome ?? 'seizures'), [data, win, outcome]);
+  const eventLabel = getOutcome(outcome ?? 'seizures').label.replace(/s$/, '');
   const t = state.settings.sleepThresholdHours;
   const day = selected ? series.find((p) => p.date === selected) ?? buildDailySeries(data, { start: selected, end: selected })[0] : null;
 
@@ -110,7 +127,7 @@ export function TimelinePage() {
         <fieldset className="mt-4">
           <legend className="text-xs font-medium text-slate-600">Layers</legend>
           <div className="mt-1 flex flex-wrap gap-3">
-            {LAYERS.map((l) => (
+            {visibleLayers.map((l) => (
               <label key={l.id} className="flex items-center gap-1.5 text-sm">
                 <input type="checkbox" className="accent-teal-700" checked={layers[l.id]} onChange={(e) => setLayers((s) => ({ ...s, [l.id]: e.target.checked }))} />
                 {l.label}
@@ -127,14 +144,21 @@ export function TimelinePage() {
               <CardTitle icon={<CalendarRange size={18} />} sub="Click a day on the chart to inspect it">
                 Sleep and seizure days
               </CardTitle>
-              <SleepChart points={series} threshold={t} onSelect={setSelected} />
+              <SleepChart points={series} threshold={t} onSelect={setSelected} flags={layers.flags ? flags : []} onFlagClick={(f) => setDialog(f)} eventLabel={eventLabel} />
+              {layers.flags && <FlagMarkerList flags={flags} onOpen={setDialog} />}
             </Card>
           )}
           <Card>
             <CardTitle sub={`${formatDate(win.start, true)} – ${formatDate(win.end, true)} · ${series.length} days`}>Aligned lanes</CardTitle>
             <div className="overflow-x-auto">
               <div className="min-w-[640px] space-y-2">
-                {layers.seizures && (
+                {layers.flags && flags.length > 0 && (
+                  <Lane label="Review markers" points={series} onSelect={setSelected} selected={selected} render={(p) => {
+                    const f = flagsOnDate(flags, p.date);
+                    return { cls: f.some((x) => x.level === 'red') ? 'bg-rose-600 text-white' : f.length ? 'bg-amber-400' : 'bg-slate-50', title: `${formatDate(p.date)}: ${f.length ? f.map((x) => x.title).join('; ') : 'no review marker'}`, content: f.length ? '!' : null };
+                  }} />
+                )}
+                {layers.seizures && seizureTracking && (
                   <Lane label="Seizures" points={series} onSelect={setSelected} selected={selected} render={(p) => ({
                     cls: p.seizures.length ? (p.seizures.some((s) => s.severity === 'severe') ? 'bg-rose-700 text-white' : 'bg-slate-800 text-white') : 'bg-slate-50',
                     title: `${formatDate(p.date)}: ${p.seizures.length} seizure(s)`,
@@ -169,11 +193,11 @@ export function TimelinePage() {
                     content: p.checkIn ? null : '×',
                   })} />
                 )}
-                {layers.cycle && (
+                {layers.cycle && cycleTracking && (
                   <div className="flex gap-2">
                     <div className="w-32 shrink-0 pt-5 text-xs font-medium text-slate-600">Cycle phase</div>
                     <div className="flex-1">
-                      <CycleStrip points={series} onSelect={setSelected} selected={selected} />
+                      <CycleStrip points={series} onSelect={setSelected} selected={selected} eventLabel={eventLabel} showEvents={false} />
                     </div>
                   </div>
                 )}
@@ -188,30 +212,39 @@ export function TimelinePage() {
         <Card className="xl:sticky xl:top-20 xl:self-start" aria-labelledby="inspector-title">
           <CardTitle id="inspector-title">{day ? formatDate(day.date, true) : 'Day inspector'}</CardTitle>
           {!day && <p className="text-sm text-slate-500">Select a day in the chart or lanes to see every record for that date.</p>}
-          {day && <DayInspector day={day} onEdit={openEditor} onDelete={requestDelete} threshold={t} />}
+          {day && <DayInspector day={day} onEdit={openEditor} onDelete={requestDelete} threshold={t} flags={flagsOnDate(flags, day.date)} onFlag={setDialog} />}
         </Card>
       </div>
+      <FlagDialog flag={dialog} onClose={() => setDialog(null)} />
     </>
   );
 }
 
-function DayInspector({ day, onEdit, onDelete, threshold }: { day: DayPoint; onEdit: ReturnType<typeof useEditor>['openEditor']; onDelete: ReturnType<typeof useEditor>['requestDelete']; threshold: number }) {
+function DayInspector({ day, onEdit, onDelete, threshold, flags, onFlag }: { day: DayPoint; onEdit: ReturnType<typeof useEditor>['openEditor']; onDelete: ReturnType<typeof useEditor>['requestDelete']; threshold: number; flags: ReviewFlag[]; onFlag: (f: ReviewFlag) => void }) {
   const { state } = useHealthData();
   const o = day.checkIn;
   const show = (v: unknown) => (v === null || v === undefined ? <span className="text-slate-400">not recorded</span> : typeof v === 'boolean' ? (v ? 'yes' : 'no') : String(v));
   const history = state.data.history.filter((h) => h.date === day.date);
+  // Use stored seizure records (the chart series may contain symptom-day markers for other outcomes).
+  const seizuresToday = state.data.seizures.filter((s) => s.date === day.date).sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
   return (
     <div className="space-y-5 text-sm">
+      {flags.length > 0 && (
+        <section>
+          <h3 className="mb-1 font-semibold text-slate-800">Clinician-review markers on this date</h3>
+          <FlagMarkerList flags={flags} onOpen={onFlag} />
+        </section>
+      )}
       <section>
         <div className="mb-1 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-800">Seizures ({day.seizures.length})</h3>
+          <h3 className="font-semibold text-slate-800">Seizures ({seizuresToday.length})</h3>
           <Button size="sm" onClick={() => onEdit({ kind: 'seizure', defaults: { date: day.date } })}>
             <Plus size={14} aria-hidden="true" /> Add
           </Button>
         </div>
-        {day.seizures.length === 0 && <p className="text-slate-500">None recorded{o ? '' : ' (no check-in that day)'}.</p>}
+        {seizuresToday.length === 0 && <p className="text-slate-500">None recorded{o ? '' : ' (no check-in that day)'}.</p>}
         <ul className="space-y-2">
-          {day.seizures.map((s) => (
+          {seizuresToday.map((s) => (
             <li key={s.id} className="rounded-lg border border-slate-200 p-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -267,6 +300,9 @@ function DayInspector({ day, onEdit, onDelete, threshold }: { day: DayPoint; onE
             <dd>{show(o.attentionDifficulty)}</dd>
             <dt className="text-slate-500">Other</dt>
             <dd>{o.otherSymptoms.join(', ') || '—'}</dd>
+            {describeMeasures(o).map((m) => (
+              <div key={m} className="col-span-2 text-slate-700">{m}</div>
+            ))}
           </dl>
         ) : (
           <p className="rounded-md bg-rose-50 p-2 text-rose-800">No check-in for this day. It is treated as missing – not as a day without seizures or symptoms.</p>

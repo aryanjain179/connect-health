@@ -1,8 +1,8 @@
-# Requirements – HealthConnect Patient Health Intelligence Platform
+# Requirements – ConnectHealth Patient Health Intelligence Platform
 
 ## Introduction
 
-HealthConnect helps patients and clinicians understand longitudinal epilepsy data by aligning seizure events with
+ConnectHealth helps patients and clinicians understand longitudinal epilepsy data by aligning seizure events with
 sleep, menstrual-cycle timing, medications and other symptoms, calculating transparent personal patterns, and
 surfacing evidence-informed potential connections for clinician review. The prototype uses fictional data only,
 runs locally in the browser and does not require an LLM, external API or database.

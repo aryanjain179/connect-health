@@ -2,39 +2,37 @@
 inclusion: always
 ---
 
-# HealthConnect – Product Scope
+# ConnectHealth – Product Scope
 
-HealthConnect is a Patient Health Intelligence Platform. It helps patients, clinicians and researchers understand
-longitudinal health data by connecting seizure events with sleep, menstrual-cycle timing, medications, other
-symptoms and curated clinical evidence.
+ConnectHealth is a patient-centred health intelligence and navigation platform.
+It helps people bring their health information together, recognise potentially meaningful patterns, prepare for
+appointments, understand possible next steps and navigate the healthcare system.
 
-## Initial scope (prototype)
+## Scope
 
-- Condition focus: epilepsy. The architecture (models, analysis engine, knowledge base) must stay condition-agnostic
-  where reasonable so other chronic conditions can be added later (e.g. new `conditionFocus`, new KB entries,
-  new analysis modules) without rewriting the UI shell.
-- Single fictional patient, ~90 days of synthetic data, stored in browser `localStorage`.
-- Runs fully offline after `npm install`: no paid database, no external health API, no AI/LLM API key.
+- **Condition-agnostic.** Users select any conditions from a starter catalog (or add their own). Epilepsy is one
+  condition in the library and the condition of the synthetic demo patient – never a default assumption.
+- The daily check-in is condition-driven: core questions for everyone, plus questions for the selected conditions.
+  The seizure log is part of the check-in and appears only when epilepsy is selected (or seizures already exist).
+  Menstrual tracking is an opt-in tracker.
+- Two separate local profiles: the synthetic **demo patient** and the user's **own profile** (created in onboarding).
+- Runs fully offline after `npm install`: no paid services, API keys, accounts or backend.
 
-## Primary users
+## Core journey
 
-- Patients: log seizures, daily observations, cycles, medications and symptoms; prepare for appointments.
-- Clinicians: review longitudinal data, calculated personal patterns and evidence-informed connections.
-- Researchers: inspect methods, denominators and limitations of each calculation.
+Sign up → select conditions and goals → record health information (forms or Voice Journal) → discover patterns →
+review flagged findings → ask questions → explore care-navigation next steps → generate a report → share selected
+information with a trusted person (local preview).
 
-## Core features (sidebar order)
+## Navigation
 
-1. Overview
-2. Health Timeline
-3. Pattern Discovery (deterministic personal-pattern engine – the differentiating feature)
-4. Clinical Connections (curated knowledge base, surfaced only with patient-specific reasons)
-5. Clinician Summary (generated from current data; copy / download / print)
-6. Care Tasks (lightweight follow-up workflow)
-7. Records (data entry: add / edit / delete, import / export / reset)
+Understand: Overview, Health Timeline, Pattern Discovery, Clinician Review, Clinical Connections.
+Act: Ask My Health Data, Voice Journal, Care Navigator, Care Tasks, Clinician Summary.
+Manage: Records, Settings (profile, trackers, People & Data Sharing).
 
-## Explicitly out of scope
+## Out of scope
 
-- Diagnosis, individual disease-probability estimates, medication recommendations.
-- Cancer (or any disease) prediction from seizure patterns.
-- Automatic test ordering, referrals, provider contact or treatment changes.
-- Real patient data, accounts, authentication or cloud sync.
+- Diagnosis, disease prediction (including cancer), individual risk estimates, medication recommendations.
+- Ordering tests, making referrals, contacting providers/insurers/caregivers, verifying coverage.
+- Real authentication, invitations, remote access or secure PHI storage (localStorage is not secure storage).
+- External AI models (the assistant is rule-based and labelled as a prototype).

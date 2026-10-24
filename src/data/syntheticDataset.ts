@@ -1,5 +1,5 @@
 /**
- * Deterministic synthetic dataset for HealthConnect.
+ * Deterministic synthetic dataset for ConnectHealth.
  *
  * ALL DATA ARE FICTIONAL. "Maya R." is not a real person, and no record is derived from a real patient.
  *
@@ -8,6 +8,7 @@
  * - A seeded PRNG generates baseline noise that never crosses an analysis threshold
  *   (baseline sleep 6.3–8.4 h, baseline stress 2–6). Every value that matters to an analysis is an explicit override.
  */
+import { emptyNavigator } from '../models/types';
 import type {
   CareTask,
   DailyObservation,
@@ -323,6 +324,11 @@ function buildTasks(): CareTask[] {
       appointmentDate: '2026-11-12',
       status: 'open',
       createdOn: SYNTHETIC_END,
+      contactedWho: '',
+      contactedOn: null,
+      followUpDate: null,
+      notes: '',
+      links: [],
       isSynthetic: true,
     },
     {
@@ -335,6 +341,11 @@ function buildTasks(): CareTask[] {
       appointmentDate: null,
       status: 'in-progress',
       createdOn: SYNTHETIC_END,
+      contactedWho: '',
+      contactedOn: null,
+      followUpDate: null,
+      notes: '',
+      links: [],
       isSynthetic: true,
     },
   ];
@@ -351,6 +362,13 @@ export function createSyntheticDataset(): HealthData {
       pronouns: 'she/her',
       conditionFocus: 'epilepsy',
       careTeamNote: 'Fictional neurology clinic – not a real provider.',
+      preferredName: 'Maya',
+      goals: ['understand-patterns', 'prepare-appointments', 'explore-connections', 'find-specialists', 'insurance-referrals', 'track-factors'],
+      trackers: { seizures: true, menstrual: true },
+      careTeam: [
+        { id: 'ct-neuro', specialty: 'neurology', name: 'Fictional neurology clinic', notes: 'Treating neurologist (fictional).' },
+        { id: 'ct-pcp', specialty: 'primary-care', name: 'Fictional primary care practice', notes: '' },
+      ],
       isSynthetic: true,
     },
     seizures: buildSeizures(),
@@ -360,5 +378,13 @@ export function createSyntheticDataset(): HealthData {
     medicationEvents: buildMedicationEvents(),
     history: buildHistory(),
     tasks: buildTasks(),
+    allergies: [
+      { id: 'al-ltg', substance: 'Lamotrigine', category: 'medication', reaction: 'Rash during titration (2019)', severity: 'moderate', status: 'confirmed', source: 'clinician-documented', notedOn: '2019-03-30', notes: 'Fictional record.', isSynthetic: true },
+      { id: 'al-pollen', substance: 'Tree pollen', category: 'environmental', reaction: 'Sneezing, itchy eyes in spring', severity: 'mild', status: 'patient-reported', source: 'patient-reported', notedOn: null, notes: '', isSynthetic: true },
+    ],
+    journal: [],
+    sharing: [],
+    navigator: emptyNavigator(),
+    reviewExcluded: [],
   };
 }

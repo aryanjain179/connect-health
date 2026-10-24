@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, Flag, SlidersHorizontal } from 'lucide-react';
+import { getOutcome } from '../analysis/outcomes';
 import { Card, Notice, PageHeader, inputClass } from '../components/ui';
 import { InsightCard } from '../components/InsightCard';
 import { useAnalysis, useHealthData } from '../store/HealthDataContext';
@@ -19,7 +20,7 @@ export function taskDefaultsFromFinding(f: PatternFinding) {
 
 export function PatternsPage() {
   const { state, dispatch } = useHealthData();
-  const { findings, window } = useAnalysis();
+  const { findings, window, outcomes, outcome, flags } = useAnalysis();
   const { openEditor } = useEditor();
   const [showSuppressed, setShowSuppressed] = useState(true);
   const visible = showSuppressed ? findings : findings.filter((f) => f.status !== 'insufficient-data' && f.status !== 'not-applicable');
@@ -32,8 +33,32 @@ export function PatternsPage() {
         description={<>Deterministic calculations from the stored records for {formatWindow(window)}. Change the analysis period in the top bar or the thresholds below – everything is recalculated immediately.</>}
       />
       <Notice tone="amber" icon={<AlertTriangle size={16} />}>
-        These are exploratory, observational calculations from diary data. A possible pattern is an association in these records – it does not show cause and effect and does not identify a confirmed seizure trigger. Small numbers make results uncertain. Review with the treating clinician before drawing conclusions.
+        These are exploratory, observational calculations from diary data. A possible pattern is an association in these records – it does not show cause and effect and does not identify a confirmed trigger. Small numbers make results uncertain. Review with the treating clinician before drawing conclusions.
       </Notice>
+
+      <Card className="mt-4">
+        <fieldset>
+          <legend className="text-sm font-semibold text-slate-800">What to analyse</legend>
+          <p className="text-xs text-slate-500">Outcomes appear when you have recorded them. Free-text symptoms can’t be analysed because their absence is never recorded, so there is no fair comparison.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {outcomes.map((o) => (
+              <label key={o.key} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${o.available ? (outcome === o.key ? 'border-teal-400 bg-teal-50' : 'border-slate-200 hover:bg-slate-50') : 'cursor-not-allowed border-dashed border-slate-200 text-slate-400'}`} title={o.reason}>
+                <input type="radio" name="outcome" className="accent-teal-700" disabled={!o.available} checked={outcome === o.key} onChange={() => dispatch({ type: 'setSettings', settings: { outcome: o.key } })} />
+                <span>
+                  {getOutcome(o.key).label}
+                  <span className="block text-xs text-slate-500">{o.reason}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </Card>
+
+      {!outcome && (
+        <div className="mt-4">
+          <Notice tone="slate">Nothing can be analysed yet. Record daily check-ins (or turn on the seizure diary in Settings if it applies to you) and patterns will appear once there is enough data.</Notice>
+        </div>
+      )}
 
       <Card className="mt-4">
         <div className="flex flex-wrap items-end gap-4">
@@ -72,7 +97,7 @@ export function PatternsPage() {
             type="button"
             className="text-sm text-teal-800 underline disabled:text-slate-400 disabled:no-underline"
             disabled={isDefault}
-            onClick={() => dispatch({ type: 'setSettings', settings: DEFAULT_SETTINGS })}
+            onClick={() => dispatch({ type: 'setSettings', settings: { sleepThresholdHours: DEFAULT_SETTINGS.sleepThresholdHours, highStressThreshold: DEFAULT_SETTINGS.highStressThreshold } })}
           >
             Reset to defaults
           </button>
@@ -82,7 +107,14 @@ export function PatternsPage() {
 
       <div className="mt-6 space-y-6">
         {visible.map((f) => (
-          <InsightCard key={f.id} finding={f} onCreateTask={(x) => openEditor({ kind: 'task', defaults: taskDefaultsFromFinding(x), insightTitle: x.title })} />
+          <div key={f.id}>
+            {flags.some((fl) => fl.findingId === f.id) && (
+              <a href={`#/review?flag=${encodeURIComponent(`flag:${f.id}`)}`} className="mb-1 inline-flex items-center gap-1 rounded-t-lg bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-200">
+                <Flag size={12} aria-hidden="true" /> Pattern identified for clinician review – open in Clinician Review
+              </a>
+            )}
+            <InsightCard finding={f} onCreateTask={(x) => openEditor({ kind: 'task', defaults: taskDefaultsFromFinding(x), insightTitle: x.title })} />
+          </div>
         ))}
       </div>
     </>

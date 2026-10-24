@@ -1,4 +1,4 @@
-# Implementation Tasks – HealthConnect
+# Implementation Tasks – ConnectHealth
 
 Each stage ends with `npm test` and `npm run build` passing.
 

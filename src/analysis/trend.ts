@@ -79,6 +79,11 @@ export function analyzeFrequencyTrend(ctx: AnalysisContext): PatternFinding {
     return finding;
   }
 
+  finding.involvedDates = recent.filter((d) => (ctx.seizuresByDate.get(d)?.length ?? 0) > 0);
+  finding.highlightRanges = [
+    { start: earlierAll[0], end: earlierAll[earlierAll.length - 1], label: 'Earlier period' },
+    { start: recentAll[0], end: recentAll[recentAll.length - 1], label: `Most recent ${RECENT_DAYS} days` },
+  ];
   const sentence =
     `${gr.events} events over ${gr.eligibleDays} observed days in the most recent ${RECENT_DAYS} days ` +
     `(${per30(gr.eventRate)} per 30 days) vs ${ge.events} over ${ge.eligibleDays} observed earlier days ` +
@@ -140,6 +145,7 @@ export function analyzeTypeChanges(ctx: AnalysisContext, data: HealthData): Patt
   for (const s of prolonged) {
     finding.details.push(`Prolonged seizure on ${s.date}: ${duration(s.durationSeconds)} (≥ ${PROLONGED_SECONDS / 60} minutes).`);
   }
+  finding.involvedDates = [...new Set([...recentEvents.filter((s) => newTypes.includes(s.type as SeizureType)).map((s) => s.date), ...prolonged.map((s) => s.date)])].sort();
 
   if (!ctx.seizuresInWindow.length) {
     finding.status = 'insufficient-data';

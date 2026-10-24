@@ -84,3 +84,72 @@ a signal beyond the diagnosis; no unsafe language) or it is suppressed.
 `findUnsafeLanguage` rejects causal claims, "confirmed trigger", undocumented diagnosis claims, individual
 probabilities or risk scores, medication directives and cancer/tumour terms (negated sentences are allowed for the
 first rules). Tests run it over every generated finding, connection and summary line.
+
+---
+
+# ConnectHealth expansion
+
+## Outcomes (`src/analysis/outcomes.ts`)
+
+The engine can analyse seizures (event diary) or a recorded daily symptom: headache, dizziness or attention
+difficulty. For a symptom outcome each day with the symptom answered "yes" is one event, and **only days where the
+question was answered** are observed – unanswered days are excluded, never treated as "no". Free-text symptoms
+(`otherSymptoms`) are not analysable because their absence is never recorded. Finding ids gain a `~<outcome>`
+suffix; seizure-specific evidence is not attached to other outcomes; the seizure-type analysis runs only for seizures.
+
+## Condition-driven check-in (`src/conditions/checkin.ts`)
+
+Core questions are asked of everyone. Extra questions come from the conditions recorded in the profile (diagnosed,
+suspected or symptom-only, via `condition:<id>` tags – symptoms never receive the bare diagnosis tag used by
+connection rules). The seizure log appears only for epilepsy, or when seizures are already recorded. A question that
+already has answers stays visible. Logging only a seizure does not create an empty check-in, so rate denominators are
+not biased towards seizure days. Yes/no condition measures (e.g. digestive symptoms, fatigue, low mood) are
+analysable outcomes (`measure:<id>`) with the same rule that unanswered days are excluded; numeric measures (pain,
+blood pressure, glucose) are summarised descriptively in the report only.
+
+**Menstrual bleeding** (`src/conditions/menstrualBleeding.ts`): with cycle tracking on, the check-in asks whether there
+was menstrual bleeding that day. "Yes" extends a period that ended up to 2 days earlier (or moves a start up to 2 days
+later back), otherwise starts a new one-day period; "No" trims a period's first or last day or removes a one-day
+period, but never splits a period; "not recorded" changes nothing. Cycle phases are then computed from these period
+records exactly as before. Bleeding answers fall under the menstrual-cycle sharing permission, not symptoms.
+
+## Clinician-review flags (`src/review/flags.ts`)
+
+| Level | Rule | Basis |
+|---|---|---|
+| Red | A recorded seizure lasting ≥ 5 minutes | Documented guidance: CDC seizure first aid; ILAE status epilepticus t1 = 5 min (tonic-clonic) |
+| Amber | Any finding with status `possible-pattern` or `notable-change` | Prototype analytic rule (thresholds above) – **not** a validated clinical rule |
+| — | Findings with `insufficient-data` | Listed as "Insufficient data to assess this pattern"; never flagged |
+
+Each flag records involved dates, comparison ranges, observation window, counts, missing data and patient questions.
+Patient-facing text is fixed and neutral and never names a disease. Users can leave a flag out of the report.
+
+## Care Navigator (`src/navigator/navigator.ts`)
+
+Specialties come from: catalog specialties of recorded diagnoses (diagnosed or suspected), symptom tags (e.g.
+snoring → sleep medicine; attention → psychiatry/psychology), review flags (sleep pattern → sleep medicine; new
+seizure type or prolonged seizure → neurology; cycle pattern → gynecology) and surfaced connections. Primary care is
+always offered. Care-team members are noted. Referral notes depend only on the plan type the user records, and they
+always end in "confirm with your insurer".
+
+## Ask My Health Data (`src/assistant/answer.ts`)
+
+Ordered keyword intents: emergency → safety (diagnosis, prescribing, "is it cancer") → tasks → medication →
+appointment → sleep → cycle → stress → discuss → last event → missing data → patterns → unsupported. Every answer is
+built from the current bundle (records, findings, flags, connections, completeness) and lists sources and missing
+data.
+
+## Voice Journal (`src/journal`)
+
+The extractor splits the transcript into clauses and proposes only explicitly stated values: sleep hours (digits or
+number words, "and a half"), stress ratings only when a number out of 10 is said (descriptive words become a note
+plus an optional rating prompt), yes/no symptoms with simple negation, seizures (time/duration only if stated, type
+"unknown"), missed doses / side effects (medication matched by name, otherwise a clarification), and menstrual bleeding yes/no for the day.
+Approved proposals become reducer actions; the journal entry stores created record ids and previous field values so
+the entry and its records can be removed.
+
+## Sharing (`src/sharing/permissions.ts`)
+
+`filterDataForPermissions` returns a reduced dataset; the shared view recomputes analyses and reports from it, so a
+person with "insights" but not "events" cannot see seizure-derived patterns. Journal transcripts and sharing settings
+are never shared. Access requires `status = active` and at least one permission; revoking clears permissions.

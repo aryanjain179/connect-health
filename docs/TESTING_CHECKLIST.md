@@ -1,40 +1,45 @@
 # Testing checklist
 
-Run `npm test` (Vitest, 74 tests) and `npm run build` (type-check + production build). A Kiro hook
-(`.kiro/hooks/run-tests-on-engine-save.json`) runs the suite when engine, clinical, summary, store or data files
-are saved.
+`npm test` runs 131 Vitest tests across 9 files; `npm run build` type-checks and builds. The Kiro `PostFileSave`
+hook runs the suite when engine, clinical, review, navigator, assistant, journal, sharing, onboarding, report,
+summary, store or data files are saved.
 
 ## Automated
 
-| Requirement | Test file(s) |
+| Area | Test file |
 |---|---|
-| Seizure counts and rates | `analysis/syntheticExpected.test.ts`, `analysis/engine.test.ts` (sleep analysis) |
-| Observation-day denominators | `engine.test.ts` (no-check-in exclusion, menstrual eligible days), `syntheticExpected.test.ts` |
-| Missing sleep data ≠ 0 h | `engine.test.ts` › "excludes missing sleep rather than counting it as 0 hours" |
-| Missing attention ≠ "no" | `clinical/clinical.test.ts` › "missing attention fields are not counted" |
-| Incomplete menstrual records | `analysis/core.test.ts` (single record, implausible cycle), `engine.test.ts` (one bounded cycle, no records) |
-| Medication changes in window | `engine.test.ts` › medication-change analysis (in / out of window, short follow-up) |
-| Insufficient sample sizes | `engine.test.ts` (sleep group too small, too few seizure days, trend < 60 days), melatonin suppression |
-| Recalculation after edit / delete | `engine.test.ts` › "recalculates after editing and deleting records"; `App.test.tsx` (add, delete via UI) |
-| Persistence after refresh | `store/store.test.ts` (round-trip, corrupt data), `App.test.tsx` (remount keeps new seizure) |
-| Evidence requirements | `clinical.test.ts` (all KB entries valid, unknown evidence suppressed, diagnosis-only signal rejected) |
-| No fabricated citations | `clinical.test.ts` (PMID allow-list, PubMed URL must contain PMID, non-allow-listed host rejected) |
-| No unsupported diagnoses / unsafe language | `clinical.test.ts` (validator unit tests + all generated text for 3 datasets × 2 periods; no cancer terms) |
-| Epilepsy alone ≠ ADHD suggestion | `clinical.test.ts` |
-| Input-order invariance | `engine.test.ts` (findings, connections and summary identical after shuffling every collection) |
-| Events never exceed recorded events | `engine.test.ts` › "event counts in any group never exceed recorded events" |
-| Determinism of synthetic data | `engine.test.ts`, `syntheticExpected.test.ts` |
-| Input validation | `store.test.ts`, `App.test.tsx` (future date rejected in the form) |
-| Insight → task workflow | `App.test.tsx` |
-| Threshold change recalculates | `App.test.tsx` |
+| Counts, rates, denominators, missing ≠ 0, insufficient samples, cycle mapping, medication windows | `analysis/engine.test.ts`, `analysis/core.test.ts`, `analysis/syntheticExpected.test.ts` |
+| Input-order invariance (findings, connections, summary); events ≤ recorded; recalculation after edit/delete | `analysis/engine.test.ts` |
+| Evidence validation, no fabricated citations, unsafe-language guard, epilepsy alone ≠ ADHD | `clinical/clinical.test.ts` |
+| Summary sections and current-data reflection | `summary/summary.test.ts` |
+| v2 storage round-trip, v1 migration, corrupt data, import/export, demo vs user separation | `store/store.test.ts` |
+| Onboarding validation, "no known conditions" exclusivity, symptom ≠ diagnosis, profile creation | `expansion.test.ts` |
+| Symptom outcomes exclude unanswered days; outcomes only when data exist | `expansion.test.ts` |
+| Flag rules (amber = prototype, red only for ≥ 5 min seizure), insufficient data not flagged, safe wording, report exclusion | `expansion.test.ts` |
+| PDF is generated text (multi-page, title, patient, review section, disclaimer) | `expansion.test.ts` |
+| Navigator suggestions, no necessity/coverage claims, plan-dependent referral notes, template placeholders | `expansion.test.ts` |
+| Sharing off by default, revoke, restricted data absent (including derived insights and condition measures) | `expansion.test.ts` |
+| Seizure log only with epilepsy; questions follow conditions; measure validation; yes/no measures as outcomes | `expansion.test.ts` |
+| Bleeding yes/no builds, extends, trims and removes period records; journal bleeding proposals with undo; menstrual-only sharing | `expansion.test.ts` |
+| Allergies: onboarding exclusivity, medication name match, report wording (not recorded ≠ none), sharing, assistant | `expansion.test.ts` |
+| UI: allergies step in the journey; Overview allergies; medication warning; Allergies tab with duplicate check; dated cycle strip (period-start labels, hover detail, dated list) | `App.test.tsx` |
+| UI: check-in asks “Menstrual bleeding on this day?” and creates the period record | `App.test.tsx` |
+| UI: seizure logged inside the check-in (no duplicate check-in); non-epilepsy profile sees pain/BP/fatigue questions but no seizure log | `App.test.tsx` |
+| Assistant grounding, unsupported questions, safety and emergency intents | `assistantJournal.test.ts` |
+| Voice extraction (example, numbers, negation, no invented severity, medication matching), approve/undo | `assistantJournal.test.ts` |
+| UI: welcome, demo, validation, persistence after remount, patterns → task, threshold + outcome switch, review → summary exclusion, delete | `App.test.tsx` |
+| UI journey: onboarding → journal → ask → navigator task → report → share → preview → revoke → demo untouched | `App.test.tsx` |
 
-## Manual (performed in Chrome during development)
+## Manual (performed)
 
-- [x] Overview, Timeline, Pattern Discovery, Clinical Connections, Clinician Summary, Care Tasks and Records render
-      with data from the store (headless Chrome screenshots at 1440 px and 500 px widths).
-- [x] Sleep chart shows gaps for missing nights; cycle strip shows hatched (estimated) and faded (projected) phases.
-- [ ] Copy-to-clipboard, Download .md and Print in a real browser session (clipboard needs a user gesture; not
-      automatable in headless screenshots).
-- [ ] Keyboard-only pass (Tab through sidebar, dialogs close with Esc) and screen-reader spot check. Full WCAG
-      conformance needs manual testing with assistive technologies and expert review.
-- [ ] Import a previously exported JSON file and confirm counts.
+- [x] Headless Chrome screenshots: welcome, onboarding (500 px), demo overview, Clinician Review with markers, Care
+      Navigator, Voice Journal (500 px).
+- [x] Generated PDF opened and rendered (macOS `sips`) – title, disclaimer, chart with markers and legend, labelled items,
+      page footer.
+
+## Manual (not yet performed)
+
+- [ ] Real microphone + speech recognition in Chrome/Edge/Safari, including permission denial.
+- [ ] Download PDF and Print / Save as PDF from a real browser session; clipboard copy buttons.
+- [ ] Keyboard-only and screen-reader pass; full WCAG validation needs assistive-technology testing and expert review.
+- [ ] Phone hardware test of onboarding and voice journaling.

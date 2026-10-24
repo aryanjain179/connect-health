@@ -236,7 +236,7 @@ function seizureChangeRule(data: HealthData, window: DateWindow, findings: Patte
   c.evidenceIds = ['cdc-seizure-first-aid', 'trinka-2015-status-epilepticus'];
   c.limitations = [
     'Seizure types and durations are patient- or witness-reported.',
-    'HealthConnect does not predict any disease from seizure patterns; changes are routed to clinician review.',
+    'ConnectHealth does not predict any disease from seizure patterns; changes are routed to clinician review.',
     'The safety protocol in this prototype has not been clinically validated.',
   ];
   const ctx = buildContext(data, window);

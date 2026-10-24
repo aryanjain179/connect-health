@@ -1,5 +1,6 @@
 /** Input validation for user-entered records. Returns a map of field → message; empty map = valid. */
 import type {
+  AllergyRecord,
   CareTask,
   DailyObservation,
   HistoryRecord,
@@ -94,6 +95,14 @@ export function validateHistory(h: HistoryRecord, today: ISODate): Errors {
   const e: Errors = {};
   if (!h.label.trim()) e.label = 'Description is required.';
   checkDate(e, 'date', h.date, today, false);
+  return e;
+}
+
+export function validateAllergy(a: AllergyRecord, existing: AllergyRecord[], today: ISODate): Errors {
+  const e: Errors = {};
+  if (!a.substance.trim()) e.substance = 'Enter what you are allergic to.';
+  else if (existing.some((x) => x.id !== a.id && x.substance.trim().toLowerCase() === a.substance.trim().toLowerCase())) e.substance = 'This allergy is already recorded – edit that one instead.';
+  checkDate(e, 'notedOn', a.notedOn, today, false);
   return e;
 }
 

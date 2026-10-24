@@ -140,7 +140,8 @@ export function analyzeMenstrual(ctx: AnalysisContext, data: HealthData, setting
         `${PHASE_LABELS[e.phase]}: ${e.g.events} events over ${e.g.eligibleDays} eligible days vs ${e.o.events} over ${e.o.eligibleDays} other days (ratio ${ratio(e.stats.rateRatio)}; events in ${plural(e.cyclesWithEvents, 'cycle')}).`,
     ),
   );
-  finding.confounderOverlap = computeOverlap(ctx, seizureDaysIn(ctx, best.inPhase), {
+  finding.involvedDates = seizureDaysIn(ctx, best.inPhase);
+  finding.confounderOverlap = computeOverlap(ctx, finding.involvedDates, {
     shortSleepBelow: settings.sleepThresholdHours,
     highStressAtLeast: settings.highStressThreshold,
     include: ['short-sleep', 'high-stress', 'illness', 'missed-dose'],

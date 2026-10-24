@@ -21,7 +21,7 @@ const LEGEND: Array<{ label: string; tone: 'teal' | 'sky' | 'violet' | 'amber' |
   { label: 'Confirmed diagnosis', tone: 'teal', text: 'Documented by a clinician in the record.' },
   { label: 'Patient-reported symptom', tone: 'sky', text: 'Reported by the patient; not clinically verified.' },
   { label: 'Population-level association', tone: 'slate', text: 'Published evidence about groups of people – not about this patient.' },
-  { label: 'Patient-specific calculated pattern', tone: 'violet', text: 'Calculated by HealthConnect from this patient’s records.' },
+  { label: 'Patient-specific calculated pattern', tone: 'violet', text: 'Calculated by ConnectHealth from this patient’s records.' },
   { label: 'Potential clinical hypothesis', tone: 'amber', text: 'A question for the clinician to consider – not a diagnosis.' },
 ];
 
@@ -133,8 +133,14 @@ export function ConnectionsPage() {
       />
 
       <Notice tone="sky" icon={<Info size={16} />}>
-        HealthConnect does not diagnose conditions, estimate individual disease probabilities, recommend medication changes or predict cancer or any other disease. Population evidence describes groups of people and is shown only as context for a clinician’s judgement.
+        ConnectHealth does not diagnose conditions, estimate individual disease probabilities, recommend medication changes or predict cancer or any other disease. Population evidence describes groups of people and is shown only as context for a clinician’s judgement.
       </Notice>
+
+      <div className="mt-3">
+        <Notice tone="slate">
+          Coverage note: the curated knowledge base in this prototype currently covers epilepsy-related connections (ADHD symptoms, sleep disorders, menstrual-cycle timing and changing seizure patterns). For other conditions no connections are evaluated yet – this does not mean none exist.
+        </Notice>
+      </div>
 
       <Card className="mt-4">
         <CardTitle>How to read this page</CardTitle>
@@ -159,7 +165,7 @@ export function ConnectionsPage() {
               <span className="font-semibold">Prompt clinician contact:</span> a new or different seizure type, or a clear increase in seizure frequency – tell the treating clinician soon so the seizure action plan can be reviewed.
             </li>
             <li>
-              <span className="font-semibold">No disease prediction:</span> HealthConnect does not infer other conditions from seizure changes. Evaluation decisions belong to the clinician.
+              <span className="font-semibold">No disease prediction:</span> ConnectHealth does not infer other conditions from seizure changes. Evaluation decisions belong to the clinician.
             </li>
           </ol>
           <p className="mt-3 flex items-center gap-1 text-xs text-rose-800">

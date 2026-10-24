@@ -71,6 +71,7 @@ export function analyzeSleep(ctx: AnalysisContext, settings: AnalysisSettings): 
   });
 
   const shortSeizureDays = seizureDaysIn(ctx, shortDays);
+  finding.involvedDates = shortSeizureDays;
   finding.confounderOverlap = computeOverlap(ctx, shortSeizureDays, {
     highStressAtLeast: settings.highStressThreshold,
     include: ['high-stress', 'illness', 'missed-dose', 'perimenstrual'],

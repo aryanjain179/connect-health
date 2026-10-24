@@ -42,3 +42,28 @@ These rules are non-negotiable for every feature, text string and test.
 
 - Care tasks are reminders for the patient. The app never orders tests, makes referrals, contacts providers or
   changes treatment.
+
+## Review flags (ConnectHealth expansion)
+
+- Red = rule backed by clinically reviewed guidance with a documented source (currently only seizure ≥ 5 minutes:
+  CDC first aid, ILAE status epilepticus t1). Amber = prototype analytic rule (possible pattern / notable change);
+  its thresholds are documented as prototype heuristics, never presented as validated clinical rules.
+- Patient-facing wording: "Pattern identified for clinician review. A change or correlation was observed in your
+  recorded health data during this period. The significance is uncertain. Please discuss this finding with a
+  qualified healthcare professional." Never name or speculate about a disease.
+- Insufficient data → "Insufficient data to assess this pattern", never a flag.
+
+## Allergies
+
+- No allergy records means "not recorded"; only an explicit "no known allergies" answer may be shown as none.
+- Medication–allergy warnings are simple name matches and must say so; they are not a drug-safety check.
+
+## Navigator, assistant, voice journal, sharing
+
+- Specialty suggestions are "may be worth discussing", never "medically necessary"; coverage and referral rules are
+  never invented – users are told to confirm with their insurer or clinician.
+- The assistant answers only from stored records, analysis results and the curated KB, lists sources and missing
+  data, declines diagnosis/prescribing requests and gives emergency guidance for emergency wording.
+- Voice journal: nothing is written without explicit approval; no invented doses, dates or severity; ambiguous
+  details trigger clarification; no tone/emotion analysis.
+- Never imply that information was sent to a clinician, insurer or caregiver. Sharing is a local preview only.

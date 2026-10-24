@@ -45,6 +45,8 @@ export function emptyFinding(
     suppressionReason: null,
     sensitivity: null,
     details: [],
+    involvedDates: [],
+    highlightRanges: [],
     ...init,
   };
 }

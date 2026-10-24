@@ -78,6 +78,10 @@ export interface PatternFinding {
   sensitivity: { label: string; groups: ComparisonGroup[]; stats: ComparisonStats | null } | null;
   /** Free-form extra details (e.g. new seizure types). */
   details: string[];
+  /** Dates of the data points behind the finding (e.g. seizure days after short sleep). */
+  involvedDates: string[];
+  /** Intervals compared (e.g. before / after a medication change). */
+  highlightRanges: Array<DateWindow & { label: string }>;
 }
 
 export type SignalKind =

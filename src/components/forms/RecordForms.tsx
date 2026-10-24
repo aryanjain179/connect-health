@@ -2,7 +2,6 @@
 import { useState, type ReactNode } from 'react';
 import type {
   CareTask,
-  DailyObservation,
   HistoryRecord,
   ISODate,
   Medication,
@@ -10,18 +9,19 @@ import type {
   MenstrualRecord,
   SeizureEvent,
 } from '../../models/types';
-import { SEIZURE_TYPE_LABELS } from '../../models/types';
+import { ALLERGY_CATEGORY_LABELS, SEIZURE_TYPE_LABELS, type AllergyRecord } from '../../models/types';
+import { allergyMatchesMedication, SEVERITY_LABELS } from '../../conditions/allergies';
 import type { Errors } from '../../store/validation';
 import {
+  validateAllergy,
   validateHistory,
   validateMedication,
   validateMedicationEvent,
   validateMenstrual,
-  validateObservation,
   validateSeizure,
   validateTask,
 } from '../../store/validation';
-import { cleanList, ListInput, NumberInput, SelectInput, TextArea, TextInput, TriState } from './fields';
+import { cleanList, ListInput, NumberInput, SelectInput, TextArea, TextInput } from './fields';
 import { Button, Notice } from '../ui';
 import { AlertTriangle } from 'lucide-react';
 
@@ -126,30 +126,6 @@ export function SeizureForm({ initial, maxDate, onSave, onCancel, onDelete }: Fo
   );
 }
 
-export function ObservationForm({ initial, maxDate, onSave, onCancel, onDelete, existing }: FormProps<DailyObservation> & { existing: DailyObservation[] }) {
-  const { draft, set, errors, submit } = useForm(initial, (r) => validateObservation(r, existing, maxDate), onSave, (r) => ({ ...r, otherSymptoms: cleanList(r.otherSymptoms) }));
-  return (
-    <form onSubmit={submit} noValidate>
-      <p className="mb-4 text-sm text-slate-600">Leave any field as “Not recorded” if you did not track it – it will be treated as missing, not as “no”.</p>
-      <Grid>
-        <TextInput label="Date" type="date" value={draft.date} onChange={(v) => set('date', v)} error={errors.date} />
-        <NumberInput label="Sleep (hours, night before)" value={draft.sleepHours} onChange={(v) => set('sleepHours', v)} error={errors.sleepHours} step="0.1" min={0} max={24} hint="Night ending on the morning of this date." />
-        <NumberInput label="Sleep quality (1–5)" value={draft.sleepQuality} onChange={(v) => set('sleepQuality', v)} error={errors.sleepQuality} step="1" min={1} max={5} />
-        <NumberInput label="Stress (0–10)" value={draft.stressLevel} onChange={(v) => set('stressLevel', v)} error={errors.stressLevel} step="1" min={0} max={10} />
-        <TriState label="Illness" value={draft.illness} onChange={(v) => set('illness', v)} />
-        <TriState label="Headache" value={draft.headache} onChange={(v) => set('headache', v)} />
-        <TriState label="Dizziness" value={draft.dizziness} onChange={(v) => set('dizziness', v)} />
-        <TriState label="Attention / concentration difficulty" value={draft.attentionDifficulty} onChange={(v) => set('attentionDifficulty', v)} />
-      </Grid>
-      <div className="mt-4 grid gap-4">
-        <ListInput label="Other symptoms" value={draft.otherSymptoms} onChange={(v) => set('otherSymptoms', v)} />
-        <TextArea label="Notes" value={draft.notes} onChange={(v) => set('notes', v)} />
-      </div>
-      <Footer onCancel={onCancel} onDelete={onDelete} hasErrors={Object.keys(errors).length > 0} />
-    </form>
-  );
-}
-
 export function MenstrualForm({ initial, maxDate, onSave, onCancel, onDelete, existing }: FormProps<MenstrualRecord> & { existing: MenstrualRecord[] }) {
   const { draft, set, errors, submit } = useForm(initial, (r) => validateMenstrual(r, existing, maxDate), onSave);
   return (
@@ -175,11 +151,66 @@ export function MenstrualForm({ initial, maxDate, onSave, onCancel, onDelete, ex
   );
 }
 
-export function MedicationForm({ initial, maxDate, onSave, onCancel, onDelete }: FormProps<Medication>) {
-  const { draft, set, errors, submit } = useForm(initial, (r) => validateMedication(r, maxDate), onSave);
+export function AllergyForm({ initial, maxDate, onSave, onCancel, onDelete, existing }: FormProps<AllergyRecord> & { existing: AllergyRecord[] }) {
+  const { draft, set, errors, submit } = useForm(initial, (r) => validateAllergy(r, existing, maxDate), onSave, (r) => ({ ...r, substance: r.substance.trim(), reaction: r.reaction.trim() }));
   return (
     <form onSubmit={submit} noValidate>
-      <Notice tone="slate">Record medications as prescribed. HealthConnect never suggests starting, stopping or changing a medication.</Notice>
+      <Grid>
+        <TextInput label="Allergic to" value={draft.substance} onChange={(v) => set('substance', v)} error={errors.substance} placeholder="e.g. penicillin, peanuts, latex" />
+        <SelectInput label="Type" value={draft.category} onChange={(v) => set('category', v)} options={(Object.keys(ALLERGY_CATEGORY_LABELS) as AllergyRecord['category'][]).map((c) => ({ value: c, label: ALLERGY_CATEGORY_LABELS[c] }))} />
+        <TextInput label="Reaction (optional)" value={draft.reaction} onChange={(v) => set('reaction', v)} placeholder="e.g. hives, swelling, rash" />
+        <SelectInput label="Severity" value={draft.severity} onChange={(v) => set('severity', v)} options={(Object.keys(SEVERITY_LABELS) as AllergyRecord['severity'][]).map((s) => ({ value: s, label: SEVERITY_LABELS[s] }))} />
+        <SelectInput
+          label="Status"
+          value={draft.status}
+          onChange={(v) => set('status', v)}
+          options={[
+            { value: 'patient-reported', label: 'Patient-reported' },
+            { value: 'confirmed', label: 'Confirmed (clinician-documented)' },
+            { value: 'suspected', label: 'Suspected' },
+            { value: 'resolved', label: 'Resolved / outgrown' },
+          ]}
+        />
+        <SelectInput
+          label="Source"
+          value={draft.source}
+          onChange={(v) => set('source', v)}
+          options={[
+            { value: 'patient-reported', label: 'Patient-reported' },
+            { value: 'clinician-documented', label: 'Clinician-documented' },
+            { value: 'external-record', label: 'External record' },
+          ]}
+        />
+        <TextInput label="Date noted (optional)" type="date" value={draft.notedOn ?? ''} onChange={(v) => set('notedOn', v || null)} error={errors.notedOn} />
+      </Grid>
+      <div className="mt-4">
+        <TextArea label="Notes" value={draft.notes} onChange={(v) => set('notes', v)} />
+      </div>
+      {draft.severity === 'severe' && (
+        <div className="mt-4">
+          <Notice tone="rose" icon={<AlertTriangle size={16} />}>
+            For severe reactions, make sure your clinicians and pharmacist know, and follow any emergency plan you have been given. In an emergency, call 911.
+          </Notice>
+        </div>
+      )}
+      <Footer onCancel={onCancel} onDelete={onDelete} hasErrors={Object.keys(errors).length > 0} />
+    </form>
+  );
+}
+
+export function MedicationForm({ initial, maxDate, onSave, onCancel, onDelete, allergies = [] }: FormProps<Medication> & { allergies?: AllergyRecord[] }) {
+  const { draft, set, errors, submit } = useForm(initial, (r) => validateMedication(r, maxDate), onSave);
+  const allergyHits = allergyMatchesMedication(allergies, draft.name);
+  return (
+    <form onSubmit={submit} noValidate>
+      <Notice tone="slate">Record medications as prescribed. ConnectHealth never suggests starting, stopping or changing a medication.</Notice>
+      {allergyHits.length > 0 && (
+        <div className="mt-3">
+          <Notice tone="amber" icon={<AlertTriangle size={16} />}>
+            You have recorded an allergy that may relate to this medication: {allergyHits.map((a) => `${a.substance}${a.reaction ? ` (${a.reaction})` : ''}`).join('; ')}. This is a simple name match, not a safety check – please confirm with your prescriber or pharmacist.
+          </Notice>
+        </div>
+      )}
       <div className="mt-4">
         <Grid>
           <TextInput label="Medication name" value={draft.name} onChange={(v) => set('name', v)} error={errors.name} />
@@ -319,7 +350,7 @@ export function TaskForm({ initial, onSave, onCancel, onDelete, insightTitle }: 
   const { draft, set, errors, submit } = useForm(initial, validateTask, onSave);
   return (
     <form onSubmit={submit} noValidate>
-      <Notice tone="slate">Tasks are personal reminders. HealthConnect does not contact providers, order tests or make referrals.</Notice>
+      <Notice tone="slate">Tasks are personal reminders. ConnectHealth does not contact providers, order tests or make referrals – record contacts here only after you make them.</Notice>
       {insightTitle && <p className="mt-3 text-sm text-slate-600">Linked insight: <span className="font-medium text-slate-800">{insightTitle}</span></p>}
       <div className="mt-4 grid gap-4">
         <TextInput label="Title" value={draft.title} onChange={(v) => set('title', v)} error={errors.title} />
@@ -344,15 +375,24 @@ export function TaskForm({ initial, onSave, onCancel, onDelete, insightTitle }: 
             value={draft.status}
             onChange={(v) => set('status', v)}
             options={[
-              { value: 'open', label: 'Open' },
-              { value: 'in-progress', label: 'In progress' },
-              { value: 'done', label: 'Done' },
+              { value: 'open', label: 'Not started' },
+              { value: 'in-progress', label: 'Started' },
+              { value: 'waiting', label: 'Waiting' },
+              { value: 'blocked', label: 'Blocked' },
+              { value: 'done', label: 'Completed' },
             ]}
           />
           <TextInput label="Due date (optional)" type="date" value={draft.dueDate ?? ''} onChange={(v) => set('dueDate', v || null)} error={errors.dueDate} />
           <TextInput label="Appointment date (optional)" type="date" value={draft.appointmentDate ?? ''} onChange={(v) => set('appointmentDate', v || null)} error={errors.appointmentDate} />
+          <TextInput label="Who you contacted (optional)" value={draft.contactedWho ?? ''} onChange={(v) => set('contactedWho', v)} placeholder="e.g. insurer member services" />
+          <TextInput label="Date contacted (optional)" type="date" value={draft.contactedOn ?? ''} onChange={(v) => set('contactedOn', v || null)} />
+          <TextInput label="Follow-up date (optional)" type="date" value={draft.followUpDate ?? ''} onChange={(v) => set('followUpDate', v || null)} />
         </Grid>
       </div>
+      <div className="mt-4">
+        <TextArea label="Notes (optional)" value={draft.notes ?? ''} onChange={(v) => set('notes', v)} />
+      </div>
+      {(draft.links?.length ?? 0) > 0 && <p className="mt-2 text-xs text-slate-500">Linked to: {draft.links!.map((l) => l.label).join('; ')}</p>}
       <Footer onCancel={onCancel} onDelete={onDelete} hasErrors={Object.keys(errors).length > 0} />
     </form>
   );

@@ -4,9 +4,9 @@ inclusion: always
 
 # Tech Stack & Commands
 
-- React 19 + TypeScript 6, Vite 8, Tailwind CSS 4 (`@tailwindcss/vite`), Recharts 3, Lucide React.
+- React 19 + TypeScript 6, Vite 8, Tailwind CSS 4 (`@tailwindcss/vite`), Recharts 3, Lucide React, jsPDF 4 (MIT, client-side PDF, lazy-loaded).
 - Tests: Vitest 5 with jsdom and Testing Library.
-- Persistence: browser `localStorage` key `healthconnect:data:v1`.
+- Persistence: browser `localStorage` key `connecthealth:root:v2` (demo + user profiles; v1 key `healthconnect:data:v1` is migrated). Not secure storage.
 
 ## Commands
 

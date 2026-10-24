@@ -51,3 +51,12 @@ against the documented history.
 ## Editing the dataset
 
 Update this file and `syntheticExpected.test.ts` together (see `.kiro/steering/synthetic-data.md`).
+
+## Expected clinician-review flags (ConnectHealth expansion)
+
+With the default settings and 90-day period, `buildReviewFlags` produces **4 amber flags and no red flag**:
+seizure sleep pattern (9 involved dates), seizure perimenstrual pattern, new seizure type (2026-10-14), and an
+attention-difficulty sleep pattern from the symptom outcome. Seven analyses are listed as "Insufficient data to
+assess this pattern" (e.g. melatonin follow-up). Adding a seizure ≥ 5 minutes produces one red flag
+(asserted in `src/expansion.test.ts`). The demo profile's care team (fictional neurology clinic and primary care
+practice) feeds the Care Navigator.

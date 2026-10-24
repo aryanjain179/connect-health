@@ -6,6 +6,7 @@ import { StatusBadge } from './labels';
 import { formatWindow } from '../analysis/dates';
 import { per30, pct, plural, pValue, ratio } from '../analysis/format';
 import { evidenceById, formatCitation } from '../clinical/knowledgeBase';
+import { getOutcome, outcomeOfFindingId } from '../analysis/outcomes';
 
 const FACTOR_LABELS: Record<PatternFinding['factor'], string> = {
   sleep: 'Sleep',
@@ -37,6 +38,8 @@ export function EvidenceLinks({ ids }: { ids: string[] }) {
 
 export function InsightCard({ finding: f, onCreateTask }: { finding: PatternFinding; onCreateTask: (f: PatternFinding) => void }) {
   const suppressed = f.status === 'insufficient-data' || f.status === 'not-applicable';
+  const o = getOutcome(outcomeOfFindingId(f.id));
+  const dayLabel = o.key === 'seizures' ? 'Seizure' : o.noun.charAt(0).toUpperCase() + o.noun.slice(1);
   const useSeizureDays = f.stats?.metric === 'seizure-day proportion';
   const chartData = f.groups.map((g) => ({
     name: g.label,
@@ -99,9 +102,9 @@ export function InsightCard({ finding: f, onCreateTask }: { finding: PatternFind
                 <tr>
                   <th scope="col" className="py-1 pr-2 font-medium">Group</th>
                   <th scope="col" className="py-1 pr-2 font-medium">Eligible days</th>
-                  <th scope="col" className="py-1 pr-2 font-medium">Seizure days</th>
+                  <th scope="col" className="py-1 pr-2 font-medium">{dayLabel} days</th>
                   <th scope="col" className="py-1 pr-2 font-medium">Events</th>
-                  <th scope="col" className="py-1 pr-2 font-medium">Seizure-day %</th>
+                  <th scope="col" className="py-1 pr-2 font-medium">{dayLabel}-day %</th>
                   <th scope="col" className="py-1 font-medium">Events / 30 d</th>
                 </tr>
               </thead>
@@ -132,12 +135,12 @@ export function InsightCard({ finding: f, onCreateTask }: { finding: PatternFind
                     <CartesianGrid stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 13)}…` : v)} />
                     <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                    <Tooltip formatter={(v) => [useSeizureDays ? `${Number(v).toFixed(1)}%` : Number(v).toFixed(1), useSeizureDays ? 'Seizure-day %' : 'Events per 30 days']} />
+                    <Tooltip formatter={(v) => [useSeizureDays ? `${Number(v).toFixed(1)}%` : Number(v).toFixed(1), useSeizureDays ? `${dayLabel}-day %` : 'Events per 30 days']} />
                     <Bar dataKey="value" fill="#0f766e" radius={[3, 3, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <figcaption className="text-center text-[11px] text-slate-500">{useSeizureDays ? 'Seizure-day % by group' : 'Events per 30 observed days by group'}</figcaption>
+              <figcaption className="text-center text-[11px] text-slate-500">{useSeizureDays ? `${dayLabel}-day % by group` : 'Events per 30 observed days by group'}</figcaption>
             </figure>
           )}
         </div>
@@ -162,9 +165,9 @@ export function InsightCard({ finding: f, onCreateTask }: { finding: PatternFind
         <div>
           <h4 className="mb-1 font-semibold text-slate-700">Potential confounders</h4>
           <ul className="list-disc space-y-0.5 pl-5 text-slate-600">
-            {f.confounderOverlap.map((o) => (
-              <li key={o.factor}>
-                {o.factor}: {o.count} of {o.of} seizure days in the exposed group
+            {f.confounderOverlap.map((ov) => (
+              <li key={ov.factor}>
+                {ov.factor}: {ov.count} of {ov.of} {o.noun} days in the exposed group
               </li>
             ))}
             {f.confounders.map((c) => (
@@ -177,7 +180,7 @@ export function InsightCard({ finding: f, onCreateTask }: { finding: PatternFind
               <ul className="list-disc space-y-0.5 pl-5 text-slate-600">
                 {f.exclusions.map((e) => (
                   <li key={e.reason}>
-                    {e.reason}: {plural(e.days, 'day')} ({plural(e.events, 'seizure event')} not used in the comparison)
+                    {e.reason}: {plural(e.days, 'day')} ({plural(e.events, o.key === 'seizures' ? 'seizure event' : `${o.noun} day`)} not used in the comparison)
                   </li>
                 ))}
               </ul>

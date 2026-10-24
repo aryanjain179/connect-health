@@ -158,7 +158,7 @@ export const KNOWLEDGE_BASE: EvidenceEntry[] = [
       'Average daily seizure frequency was higher in the perimenstrual and preovulatory phases of ovulatory cycles; the authors proposed a twofold or greater increase as a reasonable definition of catamenial epilepsy.',
     limitations: [
       'Single cycle per participant; intractable epilepsy population.',
-      'Phase assignment in HealthConnect is calendar-based; ovulation is not confirmed.',
+      'Phase assignment in ConnectHealth is calendar-based; ovulation is not confirmed.',
     ],
     relevantSignals: ['Calculated phase-related seizure-rate increase over ≥ 2 cycles'],
     discussionPoint: 'Review whether further cycle charting is useful and whether cycle timing is relevant to management.',

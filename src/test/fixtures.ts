@@ -1,5 +1,5 @@
 /** Small hand-built fixtures for unit tests. All fictional. */
-import type { DailyObservation, HealthData, SeizureEvent } from '../models/types';
+import { emptyNavigator, type DailyObservation, type HealthData, type SeizureEvent } from '../models/types';
 
 export function obs(date: string, partial: Partial<DailyObservation> = {}): DailyObservation {
   return {
@@ -55,6 +55,11 @@ export function emptyData(partial: Partial<HealthData> = {}): HealthData {
     medicationEvents: [],
     history: [],
     tasks: [],
+    allergies: [],
+    journal: [],
+    sharing: [],
+    navigator: emptyNavigator(),
+    reviewExcluded: [],
     ...partial,
   };
 }

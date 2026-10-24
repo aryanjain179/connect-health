@@ -2,7 +2,8 @@
  * Shared, pre-computed context for one analysis run. Everything is sorted and keyed by date so results do not
  * depend on the order of input records.
  */
-import type { DailyObservation, HealthData, ISODate, SeizureEvent } from '../models/types';
+import type { DailyObservation, HealthData, ISODate, OutcomeKey, SeizureEvent } from '../models/types';
+import { getOutcome, type OutcomeDef } from './outcomes';
 import type { ComparisonGroup, DateWindow } from '../models/analysis';
 import { addDays, eachDay, inWindow, maxDate, minDate } from './dates';
 import { mapCycleDays, type CycleDayInfo } from './cycle';
@@ -21,6 +22,7 @@ export interface AnalysisContext {
   cycle: Map<ISODate, CycleDayInfo>;
   missedDoseDates: Set<ISODate>;
   hasMenstrualRecords: boolean;
+  outcome: OutcomeDef;
 }
 
 export function compareSeizures(a: SeizureEvent, b: SeizureEvent): number {
@@ -31,7 +33,7 @@ export function compareSeizures(a: SeizureEvent, b: SeizureEvent): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export function buildContext(data: HealthData, window: DateWindow): AnalysisContext {
+export function buildContext(data: HealthData, window: DateWindow, outcome: OutcomeKey = 'seizures'): AnalysisContext {
   const days = eachDay(window.start, window.end);
 
   const obsByDate = new Map<ISODate, DailyObservation>();
@@ -42,7 +44,14 @@ export function buildContext(data: HealthData, window: DateWindow): AnalysisCont
     if (!existing || o.id < existing.id) obsByDate.set(o.date, o);
   }
 
-  const seizuresInWindow = data.seizures.filter((s) => inWindow(s.date, window)).sort(compareSeizures);
+  const read = getOutcome(outcome).read;
+  // For symptom outcomes each reported symptom day is represented as one untimed "event".
+  const outcomeEvents: SeizureEvent[] = read
+    ? [...obsByDate.values()]
+        .filter((o) => read(o) === true)
+        .map((o) => ({ id: `${outcome}-${o.date}`, date: o.date, time: null, type: 'unknown' as const, durationSeconds: null, severity: null, preSymptoms: [], postSymptoms: [], recoveryMinutes: null, notes: '', isSynthetic: o.isSynthetic }))
+    : data.seizures.filter((s) => inWindow(s.date, window));
+  const seizuresInWindow = outcomeEvents.sort(compareSeizures);
   const seizuresByDate = new Map<ISODate, SeizureEvent[]>();
   for (const s of seizuresInWindow) {
     const list = seizuresByDate.get(s.date) ?? [];
@@ -50,8 +59,14 @@ export function buildContext(data: HealthData, window: DateWindow): AnalysisCont
     seizuresByDate.set(s.date, list);
   }
 
-  const observedDays = days.filter((d) => obsByDate.has(d));
-  const unobservedDays = days.filter((d) => !obsByDate.has(d));
+  // A day is observed when there is a check-in (seizures) or the symptom question was answered (symptom outcomes).
+  const isObserved = (d: ISODate) => {
+    const o = obsByDate.get(d);
+    if (!o) return false;
+    return read ? read(o) !== null : true;
+  };
+  const observedDays = days.filter(isObserved);
+  const unobservedDays = days.filter((d) => !isObserved(d));
 
   return {
     window,
@@ -65,6 +80,7 @@ export function buildContext(data: HealthData, window: DateWindow): AnalysisCont
     cycle: mapCycleDays(data.menstrual, days),
     missedDoseDates: new Set(data.medicationEvents.filter((e) => e.kind === 'missed-dose').map((e) => e.date)),
     hasMenstrualRecords: data.menstrual.length > 0,
+    outcome: getOutcome(outcome),
   };
 }
 

@@ -1,4 +1,4 @@
-# Technical Design – HealthConnect
+# Technical Design – ConnectHealth
 
 ## 1. Architecture
 
@@ -126,7 +126,7 @@ findings in a fixed order. Output depends only on the set of records, not their 
 
 ## 6. Persistence
 
-`storage.ts` saves `{ version: 1, data, settings }` under `healthconnect:data:v1` after every reducer change.
+`storage.ts` saves `{ version: 1, data, settings }` under `healthconnect:data:v1` (legacy key name, now migrated into `connecthealth:root:v2`) after every reducer change.
 On load it validates shape; invalid or missing data falls back to the synthetic dataset (with a notice).
 
 ## 7. Safety constraints (summary)

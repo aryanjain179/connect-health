@@ -4,8 +4,8 @@
     {
       "name": "Run tests when engine/clinical code is saved",
       "trigger": "PostFileSave",
-      "description": "Runs the full Vitest suite whenever analysis, clinical, summary, store or synthetic-data source files are saved, so calculation or safety regressions surface immediately.",
-      "matcher": "src/(analysis|clinical|summary|store|data)/.*\\.tsx?$",
+      "description": "Runs the full Vitest suite whenever analysis, clinical, review, navigator, assistant, journal, sharing, onboarding, report, summary, store or data source files are saved.",
+      "matcher": "src/(analysis|clinical|review|navigator|assistant|journal|sharing|onboarding|conditions|report|summary|store|data)/.*\\.tsx?$",
       "action": {
         "type": "command",
         "command": "PATH=/opt/homebrew/bin:$PATH npx vitest run --reporter=dot",
