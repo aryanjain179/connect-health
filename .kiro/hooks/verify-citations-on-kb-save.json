@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Citation verification reminder",
+      "trigger": "PostFileSave",
+      "description": "Reminds the agent to verify citations and update the verified-PMID test list whenever the knowledge base changes.",
+      "matcher": "src/clinical/knowledgeBase\\.ts$",
+      "action": {
+        "type": "agent",
+        "prompt": "The clinical knowledge base was edited. Before accepting the change: verify every new or changed citation against PubMed (NCBI E-utilities esummary) or the official guidance page, confirm the URL contains the PMID, update VERIFIED_PMIDS in src/clinical/clinical.test.ts and docs/CITATIONS.md, and check the entry against .kiro/steering/clinical-safety.md. Never add a citation that has not been verified."
+      }
+    }
+  ]
+}

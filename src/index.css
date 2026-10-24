@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+  body {
+    @apply text-[15px] leading-relaxed;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-teal-600;
+  }
+}
+
+/* Diagonal hatching marks estimated / projected values so colour is not the only signal. */
+.hatch {
+  background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.65) 0 3px, transparent 3px 6px);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

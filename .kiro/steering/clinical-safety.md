@@ -1,0 +1,44 @@
+---
+inclusion: always
+---
+
+# Clinical Safety Rules
+
+These rules are non-negotiable for every feature, text string and test.
+
+## Language
+
+- Never claim causation from observational data. Use "associated with", "more seizures were recorded when…",
+  "possible pattern". Never label a factor a "confirmed trigger".
+- Never state or imply a diagnosis the patient does not have documented. Use "may warrant clinician review".
+- Never output individual disease probabilities or risk percentages for a condition.
+- Never recommend starting, stopping or changing a medication or dose.
+- Medication analyses describe temporal associations only, never treatment effects.
+- No cancer (or other disease) prediction from seizure patterns. Concerning new or changing symptoms route to the
+  reviewed safety protocol (contact the treating clinician; emergency guidance for seizures ≥ 5 minutes, per CDC
+  first-aid guidance and the ILAE status epilepticus definition).
+
+## Data honesty
+
+- Missing observations never count as zero or as "no symptom". Report them as missing and exclude them from
+  denominators.
+- Count seizure days (exposure units) separately from seizure events; event counts can never exceed recorded events.
+- Report denominators, observation windows and comparison groups for every rate.
+- Suppress findings when data are insufficient and say why.
+- Clearly distinguish: confirmed diagnoses · patient-reported symptoms · population-level associations ·
+  patient-specific calculated patterns · potential clinical hypotheses.
+
+## Evidence
+
+- Only cite sources stored in the curated knowledge base (`src/clinical/knowledgeBase.ts`), each with a verified
+  PubMed/DOI or official public-health URL. Never fabricate or auto-generate citations.
+- Each KB entry lists population, limitations, relevant signals and a clinician discussion point.
+- A clinical connection is surfaced only when patient-specific signals exist. Epilepsy alone never triggers an
+  ADHD-assessment suggestion.
+- Any optional AI text must only restate validated calculations and supplied evidence (none is implemented in the
+  prototype; the app works without an LLM).
+
+## Workflow
+
+- Care tasks are reminders for the patient. The app never orders tests, makes referrals, contacts providers or
+  changes treatment.
